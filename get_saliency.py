@@ -35,7 +35,7 @@ def register_embedding_gradient_hooks(model, embeddings_gradients):
     hook = embedding_layer.register_backward_hook(hook_layers)
     return hook
 
-def input_x_gradient(grads, embds, normalize=False):
+def input_x_gradient(grads, embds, normalize=True):
     
     input_grad = np.sum(grads * embds, axis=-1)
     if len(input_grad.shape) > 2:
