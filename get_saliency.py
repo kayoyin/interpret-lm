@@ -4,16 +4,11 @@ import torch
 import numpy as np
 from transformers import (
     WEIGHTS_NAME,
-    AdamW,
     GPT2Config,
     GPT2Tokenizer,
-    GPT2Model,
-    GPT2PreTrainedModel,
     GPT2LMHeadModel,
-    PreTrainedModel,
-    PreTrainedTokenizer,
-    get_linear_schedule_with_warmup,
-    top_k_top_p_filtering,
+    GPTNeoForCausalLM,
+
 )
 
 import matplotlib as mpl
@@ -106,7 +101,7 @@ def model_preds(model, input_ids, input_mask, pos, tokenizer, foils=None, k=10, 
     probs = softmax(A.logits[0][pos-1])
     top_preds = probs.topk(k)
     if verbose:
-        print(f"{np.round(probs[input_ids[0, pos]].item(), 3)}: {tokenizer.decode(input_ids[0, pos])}")
+        #print(f"{np.round(probs[input_ids[0, pos]].item(), 3)}: {tokenizer.decode(input_ids[0, pos])}")
         if foils:
             for foil in foils:
                 print("Contrastive loss: ", A.logits[0][pos-1][input_ids[0, pos]] - A.logits[0][pos-1][foil])
