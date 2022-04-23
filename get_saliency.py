@@ -162,7 +162,7 @@ def saliency(model, input_ids, input_mask, batch=0, pos=-1, correct=None, foil=N
         if correct == foil:
             (A.logits[0][pos-1][correct]).backward()
         else:
-            (-A.logits[0][pos-1][correct]+A.logits[0][pos-1][foil]).backward()
+            (A.logits[0][pos-1][correct]-A.logits[0][pos-1][foil]).backward()
     else:
         (A.logits[0][pos-1][correct]).backward()
     handle.remove()
