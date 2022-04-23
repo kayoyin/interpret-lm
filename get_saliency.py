@@ -46,8 +46,8 @@ def input_x_gradient(grads, embds, normalize=True):
             norms = [np.linalg.norm(input_grad[i], ord=1) for i in range(grads.shape[1])]
             input_grad = [[e / norm for e in input_grad_i] for input_grad_i, norm in zip(input_grad, norms)] 
         except:
-            norm = np.linalg.norm(input_grad, ord=1)
-            input_grad = [e / norm for e in input_grad] 
+            norm = np.linalg.norm(input_grad[0], ord=1)
+            input_grad =[e / norm for e in input_grad[0]]
     return input_grad
 
 def l1_grad_norm(grads, normalize=True):
