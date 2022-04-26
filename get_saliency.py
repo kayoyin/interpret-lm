@@ -35,32 +35,26 @@ def register_embedding_gradient_hooks(model, embeddings_gradients):
     hook = embedding_layer.register_backward_hook(hook_layers)
     return hook
 
-def input_x_gradient(grads, embds, normalize=True):
-    
+def input_x_gradient(grads, embds, normalize=False):
     input_grad = np.sum(grads * embds, axis=-1)
     if len(input_grad.shape) > 2:
         input_grad = np.squeeze(input_grad)
 
     if normalize:
-        try:
-            norms = [np.linalg.norm(input_grad[i], ord=1) for i in range(grads.shape[1])]
-            input_grad = [[e / norm for e in input_grad_i] for input_grad_i, norm in zip(input_grad, norms)] 
-        except:
-            norm = np.linalg.norm(input_grad[0], ord=1)
-            input_grad =[e / norm for e in input_grad[0]]
+        input_grad = np.squeeze(input_grad)
+        norm = np.linalg.norm(input_grad, ord=1)
+        input_grad =[e / norm for e in input_grad]
+        
     return input_grad
 
-def l1_grad_norm(grads, normalize=True):
-    l1_grad = np.mean(np.abs(grads), axis=-1)
+def l1_grad_norm(grads, normalize=False):
+    l1_grad = np.linalg.norm(grads, ord=1, axis=-1)
     if len(l1_grad.shape) > 2:
         l1_grad = np.squeeze(l1_grad)
     if normalize:
-        try:
-            norms = [np.linalg.norm(l1_grad[i], ord=1) for i in range(grads.shape[1])]
-            l1_grad = [[e / norm for e in l1_grad_i] for l1_grad_i, norm in zip(l1_grad, norms)] 
-        except:
-            norm = np.linalg.norm(l1_grad, ord=1)
-            l1_grad = [e / norm for e in l1_grad] 
+        l1_grad = np.squeeze(l1_grad)
+        norm = np.linalg.norm(l1_grad, ord=1)
+        l1_grad = [e / norm for e in l1_grad] 
     return l1_grad
 
 def vectorize(line, correct, tokenizer, model, pos=None):
@@ -180,15 +174,15 @@ def erasure_scores(model, input_ids, input_mask, pos=-1, correct=None, foil=None
     input_ids = torch.unsqueeze(torch.tensor(input_ids, dtype=torch.long).to(model.device), 0)
     input_mask = torch.unsqueeze(torch.tensor(input_mask, dtype=torch.long).to(model.device), 0)
     
-    
     A = model(input_ids, attention_mask=input_mask)
-    if foil is not None:
-        if correct == foil:
-            base_score = (A.logits[0][pos-1][correct]).detach().cpu().numpy()
-        else:
-            base_score = (A.logits[0][pos-1][correct]-A.logits[0][pos-1][foil]).detach().cpu().numpy()
+    softmax = torch.nn.Softmax(dim=0)
+    probs = softmax(A.logits[0][pos-1])
+
+    if foil is not None and correct != foil:
+        base_score = (A.logits[0][pos-1][correct]-A.logits[0][pos-1][foil]).detach().cpu().numpy()
     else:
-        base_score = (A.logits[0][pos-1][correct]).detach().cpu().numpy()
+        base_score = (probs[correct]).detach().cpu().numpy()
+
     scores = np.zeros(len(input_ids[0]))
     for i in range(len(input_ids[0])):
         if remove:
@@ -200,10 +194,12 @@ def erasure_scores(model, input_ids, input_mask, pos=-1, correct=None, foil=None
             input_mask_i[0][i] = 0
 
         A = model(input_ids_i, attention_mask=input_mask_i)
+        probs = softmax(A.logits[0][-1])
         if foil is not None and correct != foil:
             erased_score = (A.logits[0][-1][correct]-A.logits[0][-1][foil]).detach().cpu().numpy()
         else:
-            erased_score = (A.logits[0][-1][correct]).detach().cpu().numpy()
+            erased_score = (probs[correct]).detach().cpu().numpy()
+
         scores[i] = base_score - erased_score # higher score = lower confidence in correct = more influential input
     if normalize:
         norm = np.linalg.norm(scores, ord=1)
