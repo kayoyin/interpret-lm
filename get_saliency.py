@@ -89,9 +89,10 @@ def logits_to_probs(a):
 def model_preds(model, input_ids, input_mask, pos, tokenizer, foils=None, k=10, verbose=False):
     input_ids = torch.tensor(input_ids, dtype=torch.long).to(model.device)
     input_mask = torch.tensor(input_mask, dtype=torch.long).to(model.device)
+    decoder_ids = torch.tensor([tokenizer.pad_token_id], dtype=torch.long).to(model.device)
 
     softmax = torch.nn.Softmax(dim=0)
-    A = model(input_ids[:, :pos], attention_mask=input_mask[:, :pos])
+    A = model(input_ids[:, :pos], attention_mask=input_mask[:, :pos], decoder_input_ids=decoder_ids)
     probs = softmax(A.logits[0][pos-1])
     top_preds = probs.topk(k)
     if verbose:
@@ -165,7 +166,7 @@ def saliency(model, input_ids, input_mask, batch=0, pos=-1, correct=None, foil=N
     saliency_grad = embeddings_gradients[0]
     return saliency_grad[0], embeddings_list[0]
 
-def erasure_scores(model, input_ids, input_mask, pos=-1, correct=None, foil=None, remove=False, normalize=True):
+def erasure_scores(model, input_ids, input_mask, pos=-1, correct=None, foil=None, remove=False, normalize=False):
     model.eval()
     if correct is None:
         correct = input_ids[pos]
@@ -176,30 +177,31 @@ def erasure_scores(model, input_ids, input_mask, pos=-1, correct=None, foil=None
     
     A = model(input_ids, attention_mask=input_mask)
     softmax = torch.nn.Softmax(dim=0)
-    probs = softmax(A.logits[0][pos-1])
-
+    logits = A.logits[0][pos-1]
+    probs = softmax(logits)
     if foil is not None and correct != foil:
-        base_score = (A.logits[0][pos-1][correct]-A.logits[0][pos-1][foil]).detach().cpu().numpy()
+        base_score = (logits[correct]-logits[foil]).detach().cpu().numpy()
     else:
         base_score = (probs[correct]).detach().cpu().numpy()
 
     scores = np.zeros(len(input_ids[0]))
     for i in range(len(input_ids[0])):
         if remove:
-            input_ids_i = torch.cat((input_ids[:][:i], input_ids[:][i+1:]))
-            input_mask_i = torch.cat((input_mask[:][:i], input_mask[:][i+1:]))
+            input_ids_i = torch.cat((input_ids[0][:i], input_ids[0][i+1:])).unsqueeze(0)
+            input_mask_i = torch.cat((input_mask[0][:i], input_mask[0][i+1:])).unsqueeze(0)
         else:
             input_ids_i = torch.clone(input_ids)
             input_mask_i = torch.clone(input_mask)
             input_mask_i[0][i] = 0
 
         A = model(input_ids_i, attention_mask=input_mask_i)
-        probs = softmax(A.logits[0][-1])
+        logits = A.logits[0][-1]
+        probs = softmax(logits)
         if foil is not None and correct != foil:
-            erased_score = (A.logits[0][-1][correct]-A.logits[0][-1][foil]).detach().cpu().numpy()
+            erased_score = (logits[correct]-logits[foil]).detach().cpu().numpy()
         else:
             erased_score = (probs[correct]).detach().cpu().numpy()
-
+                    
         scores[i] = base_score - erased_score # higher score = lower confidence in correct = more influential input
     if normalize:
         norm = np.linalg.norm(scores, ord=1)
