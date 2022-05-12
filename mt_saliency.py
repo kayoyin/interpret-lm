@@ -45,7 +45,7 @@ def register_embedding_gradient_hooks(model, embeddings_gradients):
     hook = embedding_layer.register_backward_hook(hook_layers)
     return hook
 
-def saliency(model, input_ids, decoder_input_ids, batch=0, pos=-1, correct=None, foil=None):
+def saliency(model, input_ids, decoder_input_ids, batch=0, correct=None, foil=None):
     torch.enable_grad()
     model.eval()
     embeddings_list = []
@@ -63,17 +63,17 @@ def saliency(model, input_ids, decoder_input_ids, batch=0, pos=-1, correct=None,
 
     if foil is not None:
         if correct == foil:
-            (A.logits[0][pos-1][correct]).backward()
+            (A.logits[0][-1][correct]).backward()
         else:
-            (A.logits[0][pos-1][correct]-A.logits[0][pos-1][foil]).backward()
+            (A.logits[0][-1][correct]-A.logits[0][-1][foil]).backward()
     else:
-        (A.logits[0][pos-1][correct]).backward()
+        (A.logits[0][-1][correct]).backward()
     handle.remove()
     hook.remove()
 
     dec_saliency, enc_saliency = embeddings_gradients
     enc_embed, dec_embed = embeddings_list
-    return enc_saliency[0], enc_embed, dec_saliency[0], dec_embed
+    return enc_saliency.squeeze(), enc_embed, dec_saliency.squeeze(), dec_embed
 
 def input_x_gradient(grads, embds, normalize=False):
     # same as LM saliency
@@ -95,7 +95,7 @@ def l1_grad_norm(grads, normalize=False):
     return l1_grad
 
 
-def erasure_scores(model, input_ids, decoder_input_ids, pos=-1, correct=None, foil=None, normalize=False):
+def erasure_scores(model, input_ids, decoder_input_ids, pcorrect=None, foil=None, normalize=False):
     model.eval()
     if correct is None:
         correct = input_ids[0][-1]
@@ -104,7 +104,7 @@ def erasure_scores(model, input_ids, decoder_input_ids, pos=-1, correct=None, fo
     
     A = model(input_ids=input_ids, decoder_input_ids=decoder_input_ids)
     softmax = torch.nn.Softmax(dim=0)
-    logits = A.logits[0][pos-1]
+    logits = A.logits[0][-1]
     probs = softmax(logits)
     if foil is not None and correct != foil:
         base_score = (probs[correct]-probs[foil]).detach().cpu().numpy()
