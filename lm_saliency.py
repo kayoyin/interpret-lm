@@ -136,7 +136,7 @@ def erasure_scores(model, input_ids, input_mask, correct=None, foil=None, remove
         scores[i] = base_score - erased_score # higher score = lower confidence in correct = more influential input
     if normalize:
         norm = np.linalg.norm(scores, ord=1)
-        scores = [e / norm for e in scores] 
+        scores /= norm
     return scores
 
 def visualize(attention, tokenizer, input_ids, gold=None, normalize=False, print_text=True, save_file=None, title=None, figsize=60, fontsize=36):
