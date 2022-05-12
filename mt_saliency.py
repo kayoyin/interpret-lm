@@ -95,7 +95,7 @@ def l1_grad_norm(grads, normalize=False):
     return l1_grad
 
 
-def erasure_scores(model, input_ids, decoder_input_ids, pcorrect=None, foil=None, normalize=False):
+def erasure_scores(model, input_ids, decoder_input_ids, correct=None, foil=None, normalize=False):
     model.eval()
     if correct is None:
         correct = input_ids[0][-1]
