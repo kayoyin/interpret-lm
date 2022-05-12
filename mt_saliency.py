@@ -106,9 +106,8 @@ def erasure_scores(model, input_ids, decoder_input_ids, pos=-1, correct=None, fo
     softmax = torch.nn.Softmax(dim=0)
     logits = A.logits[0][pos-1]
     probs = softmax(logits)
-    probs = logits
     if foil is not None and correct != foil:
-        base_score = (logits[correct]-logits[foil]).detach().cpu().numpy()
+        base_score = (probs[correct]-probs[foil]).detach().cpu().numpy()
     else:
         base_score = (probs[correct]).detach().cpu().numpy()
 
@@ -118,9 +117,8 @@ def erasure_scores(model, input_ids, decoder_input_ids, pos=-1, correct=None, fo
         A = model(input_ids=input_ids_i, decoder_input_ids=decoder_input_ids)
         logits = A.logits[0][-1]
         probs = softmax(logits)
-        probs = logits
         if foil is not None and correct != foil:
-            erased_score = (logits[correct]-logits[foil]).detach().cpu().numpy()
+            erased_score = (probs[correct]-probs[foil]).detach().cpu().numpy()
         else:
             erased_score = (probs[correct]).detach().cpu().numpy()
                     
@@ -132,9 +130,8 @@ def erasure_scores(model, input_ids, decoder_input_ids, pos=-1, correct=None, fo
         A = model(input_ids=input_ids, decoder_input_ids=decoder_input_ids_i)
         logits = A.logits[0][-1]
         probs = softmax(logits)
-        probs = logits
         if foil is not None and correct != foil:
-            erased_score = (logits[correct]-logits[foil]).detach().cpu().numpy()
+            erased_score = (probs[correct]-probs[foil]).detach().cpu().numpy()
         else:
             erased_score = (probs[correct]).detach().cpu().numpy()
                     
