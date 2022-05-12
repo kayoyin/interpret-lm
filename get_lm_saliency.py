@@ -86,21 +86,13 @@ def logits_to_probs(a):
     p = np.exp(a)
     return p / (1 + p)
 
-def model_preds(model, input_ids, input_mask, pos, tokenizer, foils=None, k=10, verbose=False):
-    input_ids = torch.tensor(input_ids, dtype=torch.long).to(model.device)
-    input_mask = torch.tensor(input_mask, dtype=torch.long).to(model.device)
-    decoder_ids = torch.tensor([tokenizer.pad_token_id], dtype=torch.long).to(model.device)
 
+def model_preds(model, input_ids, decoder_input_ids, tokenizer, k=10, verbose=False):
     softmax = torch.nn.Softmax(dim=0)
-    A = model(input_ids[:, :pos], attention_mask=input_mask[:, :pos], decoder_input_ids=decoder_ids)
-    probs = softmax(A.logits[0][pos-1])
+    A = model(input_ids=input_ids, decoder_input_ids=decoder_input_ids)
+    probs = softmax(A.logits[0][-1])
     top_preds = probs.topk(k)
     if verbose:
-        #print(f"{np.round(probs[input_ids[0, pos]].item(), 3)}: {tokenizer.decode(input_ids[0, pos])}")
-        if foils:
-            for foil in foils:
-                print("Contrastive loss: ", A.logits[0][pos-1][input_ids[0, pos]] - A.logits[0][pos-1][foil])
-                print(f"{np.round(probs[foil].item(), 3)}: {tokenizer.decode(foil)}")
         print("Top model predictions:")
         for p,i in zip(top_preds.values, top_preds.indices):
             print(f"{np.round(p.item(), 3)}: {tokenizer.decode(i)}")
